@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
 from flask_cors import CORS 
 from flask_heroku import Heroku
+from flask_bcrypt import Bcrypt
 import io 
 
 
@@ -13,7 +14,8 @@ db = SQLAlchemy(app)
 ma = Marshmallow(app)
 
 heroku = Heroku(app)
-CORS(app) 
+CORS(app)
+bcrypt = Bcrypt(app) 
 
 class File(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -94,7 +96,9 @@ def create_user():
     username = post_data.get("username")
     password = post_data.get("password")
 
-    record = User(username, password)
+    hashed_password = bcrypt.generate_password_hash(password).decode("utf8")
+
+    record = User(username, hashed_password)
     db.session.add(record)
     db.session.commit()
 
@@ -109,6 +113,30 @@ def get_all_users():
 def get_user_by_id(id):
     user = db.session.query(User).filter(User.id == id).first()
     return jsonify(user_schema.dump(user))
+
+@app.route("/user/verification", methods=["POST"])
+def verify_user():
+    if request.content_type != "application/json":
+        return jsonify("Error: Data must be sent as JSON")
+
+    post_data = request.get_json()
+    username = post_data.get("username")
+    password = post_data.get("password")
+
+    stored_password = db.session.query(User.password).filter(User.username == username).first()
+    print(stored_password)
+    print(password)
+
+    if stored_password is None:
+        return jsonify("User NOT Verified")
+
+    valid_password_check = bcrypt.check_password_hash(stored_password[0], password)
+
+    if valid_password_check == False:
+        return jsonify("User NOT Verified")
+
+    return jsonify("User Verified")
+
 
 if __name__ == "__main__":
     app.run(debug=True)
