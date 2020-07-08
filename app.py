@@ -120,6 +120,7 @@ def get_user_by_id(id):
 
 @app.route("/user/verification", methods=["POST"])
 def verify_user():
+    print(request.content_type)
     if request.content_type != "application/json":
         return jsonify("Error: Data must be sent as JSON")
 
